@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>JobFit</title>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">JobFit</div>
+      <button id="settingsBtn" class="link" title="Settings">Settings</button>
+    </header>
+
+    <main id="main">
+      <div id="status" class="status">Reading job page…</div>
+
+      <section id="result" class="result hidden">
+        <div class="score-row">
+          <div id="scoreCircle" class="score-circle">
+            <span id="scoreNum">--</span>
+          </div>
+          <div class="score-meta">
+            <div id="verdict" class="verdict">—</div>
+            <div id="meta" class="meta"></div>
+          </div>
+        </div>
+
+        <div id="summary" class="summary"></div>
+
+        <div class="cols">
+          <div class="col">
+            <h3 class="matched">Matched</h3>
+            <ul id="matchedList" class="chips"></ul>
+          </div>
+          <div class="col">
+            <h3 class="missing">Missing</h3>
+            <ul id="missingList" class="chips"></ul>
+          </div>
+        </div>
+
+        <div class="tweaks">
+          <h3>Resume tweaks</h3>
+          <ul id="tweaksList"></ul>
+        </div>
+
+        <div id="notes" class="notes"></div>
+      </section>
+
+      <div id="error" class="error hidden"></div>
+    </main>
+
+    <footer class="footer">
+      <div id="quota" class="quota"></div>
+      <div class="actions">
+        <button id="analyzeBtn" class="primary" disabled>Analyze</button>
+        <button id="reanalyzeBtn" class="secondary hidden">Re-analyze</button>
+      </div>
+    </footer>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

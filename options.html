@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JobFit — Settings</title>
+    <style>
+      :root {
+        --bg: #0f1115; --panel: #171a21; --text: #e8eaed; --muted: #9aa0aa;
+        --border: #2a2f3a; --accent: #4c8bf5; --green: #2fbf71; --red: #e5484d;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; background: var(--bg); color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-size: 14px; line-height: 1.5;
+      }
+      .wrap { max-width: 640px; margin: 0 auto; padding: 32px 24px 64px; }
+      h1 { font-size: 22px; margin: 0 0 4px; }
+      .sub { color: var(--muted); margin: 0 0 28px; }
+      .field { margin-bottom: 22px; }
+      label { display: block; font-weight: 600; margin-bottom: 6px; }
+      .hint { color: var(--muted); font-size: 12px; margin: 4px 0 8px; }
+      input[type="text"], input[type="password"], textarea, select {
+        width: 100%; background: var(--panel); color: var(--text);
+        border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px;
+        font-size: 14px; font-family: inherit;
+      }
+      textarea { min-height: 200px; resize: vertical; }
+      .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+      .file-label {
+        display: inline-block; background: var(--panel); border: 1px solid var(--border);
+        border-radius: 8px; padding: 8px 14px; cursor: pointer; font-size: 13px;
+      }
+      input[type="file"] { display: none; }
+      .file-status { color: var(--muted); font-size: 12px; }
+      .actions { display: flex; gap: 12px; align-items: center; margin-top: 8px; }
+      button.save {
+        background: var(--accent); color: #fff; border: none; border-radius: 8px;
+        padding: 11px 22px; font-size: 14px; font-weight: 600; cursor: pointer;
+      }
+      .confirm { color: var(--green); font-size: 13px; }
+      .confirm.err { color: var(--red); }
+      .reveal { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>JobFit Settings</h1>
+      <p class="sub">Stored locally in your browser via <code>chrome.storage.local</code>.</p>
+
+      <div class="field">
+        <label for="apiKey">Groq API key</label>
+        <p class="hint">Get one at console.groq.com. Stored only on this device.</p>
+        <div class="row">
+          <input type="password" id="apiKey" placeholder="gsk_..." autocomplete="off" />
+          <button type="button" id="revealKey" class="reveal">Show</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="model">Model</label>
+        <p class="hint">Default: llama-3.3-70b-versatile</p>
+        <input type="text" id="model" placeholder="llama-3.3-70b-versatile" />
+      </div>
+
+      <div class="field">
+        <label for="resume">Resume</label>
+        <p class="hint">Paste text below, or upload a .docx / .pdf to extract it.</p>
+        <div class="row" style="margin-bottom: 10px;">
+          <label class="file-label" for="resumeFile">Upload .docx / .pdf</label>
+          <input type="file" id="resumeFile" accept=".docx,.pdf" />
+          <span id="fileStatus" class="file-status"></span>
+        </div>
+        <textarea id="resume" placeholder="Paste your resume text here…"></textarea>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="save" id="saveBtn">Save</button>
+        <span id="confirm" class="confirm"></span>
+      </div>
+    </div>
+
+    <script src="vendor/mammoth.browser.min.js"></script>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>
