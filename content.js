@@ -84,6 +84,26 @@
     return best ? cleanText(best.innerText) : "";
   }
 
+  // Decide if the page is rendered light or dark by sampling the first
+  // opaque background color walking up from <body>.
+  function detectPageTheme() {
+    let el = document.body || document.documentElement;
+    let bg = "";
+    while (el) {
+      const c = window.getComputedStyle(el).backgroundColor;
+      if (c && !/rgba?\(0, 0, 0, 0\)|transparent/.test(c)) {
+        bg = c;
+        break;
+      }
+      el = el.parentElement;
+    }
+    const nums = bg.match(/\d+/g);
+    if (!nums || nums.length < 3) return "light";
+    const [r, g, b] = nums.map(Number);
+    const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return luminance < 128 ? "dark" : "light";
+  }
+
   function scrape() {
     const key = siteKey();
     let text = "";
@@ -120,6 +140,7 @@
       site: key || location.hostname,
       usedFallback,
       matchedSelector,
+      pageTheme: detectPageTheme(),
       ok: text.length >= 80
     };
   }

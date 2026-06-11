@@ -4,9 +4,13 @@ const els = {
   status: document.getElementById("status"),
   result: document.getElementById("result"),
   error: document.getElementById("error"),
+  recommend: document.getElementById("recommend"),
+  recommendTitle: document.getElementById("recommendTitle"),
+  recommendSub: document.getElementById("recommendSub"),
   scoreCircle: document.getElementById("scoreCircle"),
   scoreNum: document.getElementById("scoreNum"),
   verdict: document.getElementById("verdict"),
+  seniority: document.getElementById("seniority"),
   meta: document.getElementById("meta"),
   summary: document.getElementById("summary"),
   matchedList: document.getElementById("matchedList"),
@@ -27,11 +31,58 @@ const SUPPORTED = ["linkedin.com", "indeed.com", "wellfound.com"];
 function show(el) { el.classList.remove("hidden"); }
 function hide(el) { el.classList.add("hidden"); }
 
+// Score is 1-5 (skills/domain fit).
 function colorFor(score) {
-  if (score >= 75) return "green";
-  if (score >= 50) return "amber";
+  if (score >= 4) return "green";
+  if (score >= 3) return "amber";
   return "red";
 }
+
+// Apply recommendation combines skills fit (1-5) with seniority alignment,
+// so an overqualified candidate isn't told to apply to a junior role.
+function recommendation(score, seniority) {
+  if (seniority === "overqualified") {
+    return {
+      title: "You may be over-leveled",
+      sub: "Your experience exceeds this role — apply only if a step down or a change of focus appeals to you.",
+      cls: "amber"
+    };
+  }
+  if (seniority === "underqualified") {
+    if (score >= 4) {
+      return {
+        title: "A reach on experience",
+        sub: "Skills line up, but the role expects more seniority than your resume shows.",
+        cls: "amber"
+      };
+    }
+    return {
+      title: "Likely too senior a role",
+      sub: "This role expects more experience than your resume demonstrates.",
+      cls: "red"
+    };
+  }
+  // Levels align — go by skills fit.
+  if (score >= 5) {
+    return { title: "Apply — you'd be a top applicant", sub: "Strong match on skills and level.", cls: "green" };
+  }
+  if (score >= 4) {
+    return { title: "Worth applying", sub: "Good match — tailor your resume to the gaps first.", cls: "green" };
+  }
+  if (score >= 3) {
+    return { title: "Apply if you're interested", sub: "Partial match — close the missing skills to stand out.", cls: "amber" };
+  }
+  if (score >= 2) {
+    return { title: "A stretch — apply only if keen", sub: "Several key requirements aren't covered by your resume.", cls: "amber" };
+  }
+  return { title: "Probably skip this one", sub: "Weak match on the core requirements.", cls: "red" };
+}
+
+const SENIORITY_LABEL = {
+  overqualified: { text: "Over-leveled for this role", cls: "over" },
+  underqualified: { text: "Below this role's level", cls: "under" },
+  "well-matched": { text: "Level matches", cls: "match" }
+};
 
 function setStatus(text) {
   els.status.textContent = text;
@@ -72,10 +123,23 @@ function renderResult(payload) {
   const r = payload.result;
   const color = colorFor(r.fitScore);
 
+  const rec = recommendation(r.fitScore, r.seniorityFit);
+  els.recommend.className = "recommend " + rec.cls;
+  els.recommendTitle.textContent = rec.title;
+  els.recommendSub.textContent = rec.sub;
+
   els.scoreNum.textContent = r.fitScore;
   els.scoreCircle.className = "score-circle " + color;
   els.verdict.textContent = r.verdict;
   els.verdict.className = "verdict " + color;
+
+  const sen = SENIORITY_LABEL[r.seniorityFit];
+  if (sen) {
+    els.seniority.textContent = r.seniorityNote ? sen.text + " — " + r.seniorityNote : sen.text;
+    els.seniority.className = "seniority " + sen.cls;
+  } else {
+    els.seniority.className = "seniority hidden";
+  }
 
   const bits = [];
   if (payload.cached) bits.push("cached");
@@ -188,6 +252,9 @@ async function init() {
 
   try {
     scraped = await scrapeActivePage();
+    if (scraped.pageTheme === "light" || scraped.pageTheme === "dark") {
+      document.documentElement.setAttribute("data-theme", scraped.pageTheme);
+    }
   } catch (e) {
     showError(String(e.message || e));
     return;

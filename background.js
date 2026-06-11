@@ -5,7 +5,7 @@ const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 const DEFAULT_MODEL = "llama-3.3-70b-versatile";
 const CHAR_BUDGET = 6000; // per-field cap before sending
 const MAX_TOKENS = 800; // completion is small JSON
-const CACHE_PREFIX = "jobfit_cache_";
+const CACHE_PREFIX = "jobfit_cache_v2_";
 
 function truncate(text, budget = CHAR_BUDGET) {
   const clean = (text || "").trim();
@@ -21,11 +21,21 @@ function buildPrompt(resume, jobDescription) {
         "You are a precise technical recruiter. Compare a candidate's resume " +
         "against a job description and assess fit. Respond with STRICT JSON " +
         "only — no prose, no markdown, no code fences. Use exactly this shape:\n" +
-        '{"fitScore":0-100,"verdict":"strong fit | partial fit | weak fit",' +
-        '"matchedSkills":[],"missingSkills":[],"resumeTweaks":[],"summary":""}\n' +
-        "fitScore is an integer 0-100. verdict must be one of the three exact " +
-        "strings. matchedSkills/missingSkills/resumeTweaks are short string " +
-        "arrays. summary is 1-3 sentences."
+        '{"fitScore":1-5,"verdict":"strong fit | partial fit | weak fit",' +
+        '"seniorityFit":"underqualified | well-matched | overqualified",' +
+        '"seniorityNote":"","matchedSkills":[],"missingSkills":[],' +
+        '"resumeTweaks":[],"summary":""}\n' +
+        "fitScore is an integer 1 (poor) to 5 (excellent) for SKILLS/DOMAIN " +
+        "fit only. verdict must be one of the three exact strings.\n" +
+        "seniorityFit compares the candidate's experience LEVEL against the " +
+        "level the role targets. Judge by years of experience, scope, and " +
+        "title: 'overqualified' means the candidate is more senior than the " +
+        "role (e.g. a Senior applying to an Associate/Junior role), " +
+        "'underqualified' means the role expects more seniority than the " +
+        "resume shows, 'well-matched' means the levels align. seniorityNote " +
+        "is one short sentence explaining the level comparison.\n" +
+        "matchedSkills/missingSkills/resumeTweaks are short string arrays. " +
+        "summary is 1-3 sentences."
     },
     {
       role: "user",
@@ -54,6 +64,8 @@ function safeParseResult(content) {
     return {
       fitScore: clampScore(parsed.fitScore),
       verdict: typeof parsed.verdict === "string" ? parsed.verdict : "partial fit",
+      seniorityFit: normalizeSeniority(parsed.seniorityFit),
+      seniorityNote: typeof parsed.seniorityNote === "string" ? parsed.seniorityNote : "",
       matchedSkills: asArray(parsed.matchedSkills),
       missingSkills: asArray(parsed.missingSkills),
       resumeTweaks: asArray(parsed.resumeTweaks),
@@ -66,8 +78,15 @@ function safeParseResult(content) {
 
 function clampScore(n) {
   const v = Math.round(Number(n));
-  if (Number.isNaN(v)) return 0;
-  return Math.max(0, Math.min(100, v));
+  if (Number.isNaN(v)) return 1;
+  return Math.max(1, Math.min(5, v));
+}
+
+function normalizeSeniority(s) {
+  const v = String(s || "").toLowerCase();
+  if (v.includes("over")) return "overqualified";
+  if (v.includes("under")) return "underqualified";
+  return "well-matched";
 }
 
 function asArray(a) {

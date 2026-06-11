@@ -9,7 +9,8 @@ No build step — load it unpacked.
 - **One-time resume storage** — paste text or upload `.docx` (parsed with `mammoth`) / `.pdf` (parsed with `pdf.js`). Saved in `chrome.storage.local`.
 - **Per-site scraping** — selector map per job site with a largest-visible-text-block fallback when selectors break.
 - **Groq scoring** — single call from the background service worker (CORS-safe). Model configurable (default `llama-3.3-70b-versatile`).
-- **Strict JSON output** — `fitScore`, `verdict`, `matchedSkills`, `missingSkills`, `resumeTweaks`, `summary`. Parsed safely with code-fence stripping and a fallback.
+- **Strict JSON output** — `fitScore` (1–5 skills fit), `verdict`, `seniorityFit` (under/well-matched/over-qualified) + `seniorityNote`, `matchedSkills`, `missingSkills`, `resumeTweaks`, `summary`. Parsed safely with code-fence stripping and a fallback.
+- **Seniority-aware advice** — the apply recommendation factors experience level, so an over-leveled candidate (e.g. a Senior applying to an Associate role) is flagged rather than told to apply.
 - **Rate-limit & usage aware**
   - Inputs truncated to ~6k chars each (UI flags truncation).
   - `max_tokens` capped at 800 since the JSON output is small.
