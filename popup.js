@@ -10,7 +10,9 @@ const els = {
   scoreCircle: document.getElementById("scoreCircle"),
   scoreNum: document.getElementById("scoreNum"),
   verdict: document.getElementById("verdict"),
-  seniority: document.getElementById("seniority"),
+  experience: document.getElementById("experience"),
+  domainRow: document.getElementById("domainRow"),
+  gapRow: document.getElementById("gapRow"),
   meta: document.getElementById("meta"),
   summary: document.getElementById("summary"),
   matchedList: document.getElementById("matchedList"),
@@ -31,6 +33,15 @@ const SUPPORTED = ["linkedin.com", "indeed.com", "wellfound.com"];
 function show(el) { el.classList.remove("hidden"); }
 function hide(el) { el.classList.add("hidden"); }
 
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // Score is 1-5 (skills/domain fit).
 function colorFor(score) {
   if (score >= 4) return "green";
@@ -38,51 +49,30 @@ function colorFor(score) {
   return "red";
 }
 
-// Apply recommendation combines skills fit (1-5) with seniority alignment,
-// so an overqualified candidate isn't told to apply to a junior role.
-function recommendation(score, seniority) {
-  if (seniority === "overqualified") {
-    return {
-      title: "You may be over-leveled",
-      sub: "Your experience exceeds this role — apply only if a step down or a change of focus appeals to you.",
-      cls: "amber"
-    };
-  }
-  if (seniority === "underqualified") {
-    if (score >= 4) {
-      return {
-        title: "A reach on experience",
-        sub: "Skills line up, but the role expects more seniority than your resume shows.",
-        cls: "amber"
-      };
-    }
-    return {
-      title: "Likely too senior a role",
-      sub: "This role expects more experience than your resume demonstrates.",
-      cls: "red"
-    };
-  }
-  // Levels align — go by skills fit.
+// Apply recommendation. fitScore (1-5) already bakes in the hard rules
+// (capped at 3 for experience/domain gaps), so the score drives the advice
+// and the experience/domain rows below explain why.
+function recommendation(score) {
   if (score >= 5) {
-    return { title: "Apply — you'd be a top applicant", sub: "Strong match on skills and level.", cls: "green" };
+    return { title: "Apply — you'd be a top applicant", sub: "Strong same-domain, same-level match.", cls: "green" };
   }
   if (score >= 4) {
     return { title: "Worth applying", sub: "Good match — tailor your resume to the gaps first.", cls: "green" };
   }
   if (score >= 3) {
-    return { title: "Apply if you're interested", sub: "Partial match — close the missing skills to stand out.", cls: "amber" };
+    return { title: "Apply with caveats", sub: "Partial fit — weigh the experience and domain gaps below first.", cls: "amber" };
   }
   if (score >= 2) {
-    return { title: "A stretch — apply only if keen", sub: "Several key requirements aren't covered by your resume.", cls: "amber" };
+    return { title: "Likely not a fit", sub: "Significant experience or domain gaps for this role.", cls: "red" };
   }
-  return { title: "Probably skip this one", sub: "Weak match on the core requirements.", cls: "red" };
+  return { title: "Probably skip this one", sub: "Weak or irrelevant match for this role.", cls: "red" };
 }
 
-const SENIORITY_LABEL = {
-  overqualified: { text: "Over-leveled for this role", cls: "over" },
-  underqualified: { text: "Below this role's level", cls: "under" },
-  "well-matched": { text: "Level matches", cls: "match" }
-};
+function fmtYears(n) {
+  if (n == null) return null;
+  const r = Math.round(n * 10) / 10;
+  return r + (r === 1 ? " yr" : " yrs");
+}
 
 function setStatus(text) {
   els.status.textContent = text;
@@ -123,7 +113,7 @@ function renderResult(payload) {
   const r = payload.result;
   const color = colorFor(r.fitScore);
 
-  const rec = recommendation(r.fitScore, r.seniorityFit);
+  const rec = recommendation(r.fitScore);
   els.recommend.className = "recommend " + rec.cls;
   els.recommendTitle.textContent = rec.title;
   els.recommendSub.textContent = rec.sub;
@@ -133,12 +123,35 @@ function renderResult(payload) {
   els.verdict.textContent = r.verdict;
   els.verdict.className = "verdict " + color;
 
-  const sen = SENIORITY_LABEL[r.seniorityFit];
-  if (sen) {
-    els.seniority.textContent = r.seniorityNote ? sen.text + " — " + r.seniorityNote : sen.text;
-    els.seniority.className = "seniority " + sen.cls;
+  // Relevant vs total years. Highlight when relevant is notably below total.
+  const rel = fmtYears(r.roleExperienceYears);
+  const tot = fmtYears(r.totalExperienceYears);
+  if (rel || tot) {
+    const relShort = r.roleExperienceYears != null && r.totalExperienceYears != null &&
+      r.roleExperienceYears < r.totalExperienceYears - 0.5;
+    els.experience.innerHTML =
+      (rel ? '<span class="' + (relShort ? "lo" : "") + '">' + rel + " relevant</span>" : "") +
+      (rel && tot ? " · " : "") +
+      (tot ? tot + " total" : "");
   } else {
-    els.seniority.className = "seniority hidden";
+    els.experience.textContent = "";
+  }
+
+  // Domain match row.
+  if (r.domainMatch) {
+    els.domainRow.innerHTML = '<span class="label">Domain:</span> ' + escapeHtml(r.domainMatch);
+    els.domainRow.className = "fact" + (/weak|mismatch|gap|no\b|poor/i.test(r.domainMatch) ? " warn" : "");
+  } else {
+    els.domainRow.className = "fact hidden";
+  }
+
+  // Experience gap row (skip when 'none').
+  const gap = (r.experienceGap || "").trim();
+  if (gap && gap.toLowerCase() !== "none") {
+    els.gapRow.innerHTML = '<span class="label">Experience gap:</span> ' + escapeHtml(gap);
+    els.gapRow.className = "fact warn";
+  } else {
+    els.gapRow.className = "fact hidden";
   }
 
   const bits = [];

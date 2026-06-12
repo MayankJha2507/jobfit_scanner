@@ -5,7 +5,7 @@ const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 const DEFAULT_MODEL = "llama-3.3-70b-versatile";
 const CHAR_BUDGET = 6000; // per-field cap before sending
 const MAX_TOKENS = 800; // completion is small JSON
-const CACHE_PREFIX = "jobfit_cache_v2_";
+const CACHE_PREFIX = "jobfit_cache_v3_";
 
 function truncate(text, budget = CHAR_BUDGET) {
   const clean = (text || "").trim();
@@ -13,30 +13,37 @@ function truncate(text, budget = CHAR_BUDGET) {
   return { text: clean.slice(0, budget), truncated: true };
 }
 
+const SYSTEM_PROMPT = `You are a strict, calibrated technical recruiter. Analyze the fit between the RESUME and JOB DESCRIPTION provided. Be skeptical and avoid grade inflation. Match on substance, not on keywords or numbers appearing in the text.
+
+Reason step by step BEFORE scoring:
+1. Extract the JD's hard requirements: years of role-specific experience, domain/business model (e.g. B2B vs B2C, SaaS vs marketplace, online vs offline fulfillment), seniority level, and must-have skills.
+2. From the resume's employment DATES and titles, compute two numbers: (a) years of experience in the specific discipline/seniority the JD requires, and (b) total career years. To get (a), count only roles whose title or responsibilities clearly fall within the JD's target discipline; exclude earlier roles in a different function, even at the same employer. If every role matches the discipline, (a) and (b) will be equal — that is expected and must NOT be penalized. Never assume total tenure equals relevant experience, and never take a summary's headline number (e.g. "8 years") at face value — always verify it against the dated roles.
+3. Assess domain transfer explicitly. Cross-domain moves (e.g. B2B SaaS -> consumer marketplace, online -> offline fulfillment) are significant gaps, not keyword matches.
+4. List the skills and experiences the candidate LACKS for THIS specific role and domain.
+
+Hard rules:
+- If role-specific experience is below the JD's stated minimum, fitScore is at most 3.
+- If the business model/domain is a fundamental mismatch, fitScore is at most 3.
+- If both are true, fitScore is at most 2.
+- missingSkills may only be empty for a same-domain, same-seniority match. For any cross-domain application you MUST list concrete gaps.
+
+Return STRICT JSON only — no preamble, no markdown, no code fences. Emit the analytical fields first and fitScore LAST, so the score follows from the analysis:
+{
+  "roleExperienceYears": number,
+  "totalExperienceYears": number,
+  "experienceGap": "one-line description of any gap, or 'none'",
+  "domainMatch": "e.g. 'B2B SaaS -> consumer marketplace: weak'",
+  "matchedSkills": [],
+  "missingSkills": [],
+  "resumeTweaks": [],
+  "summary": "2-3 sentences",
+  "verdict": "strong fit | partial fit | weak fit",
+  "fitScore": 1-5 integer (1 = weak/irrelevant, 3 = partial, 5 = strong same-domain same-level match)
+}`;
+
 function buildPrompt(resume, jobDescription) {
   return [
-    {
-      role: "system",
-      content:
-        "You are a precise technical recruiter. Compare a candidate's resume " +
-        "against a job description and assess fit. Respond with STRICT JSON " +
-        "only — no prose, no markdown, no code fences. Use exactly this shape:\n" +
-        '{"fitScore":1-5,"verdict":"strong fit | partial fit | weak fit",' +
-        '"seniorityFit":"underqualified | well-matched | overqualified",' +
-        '"seniorityNote":"","matchedSkills":[],"missingSkills":[],' +
-        '"resumeTweaks":[],"summary":""}\n' +
-        "fitScore is an integer 1 (poor) to 5 (excellent) for SKILLS/DOMAIN " +
-        "fit only. verdict must be one of the three exact strings.\n" +
-        "seniorityFit compares the candidate's experience LEVEL against the " +
-        "level the role targets. Judge by years of experience, scope, and " +
-        "title: 'overqualified' means the candidate is more senior than the " +
-        "role (e.g. a Senior applying to an Associate/Junior role), " +
-        "'underqualified' means the role expects more seniority than the " +
-        "resume shows, 'well-matched' means the levels align. seniorityNote " +
-        "is one short sentence explaining the level comparison.\n" +
-        "matchedSkills/missingSkills/resumeTweaks are short string arrays. " +
-        "summary is 1-3 sentences."
-    },
+    { role: "system", content: SYSTEM_PROMPT },
     {
       role: "user",
       content:
@@ -64,8 +71,10 @@ function safeParseResult(content) {
     return {
       fitScore: clampScore(parsed.fitScore),
       verdict: typeof parsed.verdict === "string" ? parsed.verdict : "partial fit",
-      seniorityFit: normalizeSeniority(parsed.seniorityFit),
-      seniorityNote: typeof parsed.seniorityNote === "string" ? parsed.seniorityNote : "",
+      roleExperienceYears: toNum(parsed.roleExperienceYears),
+      totalExperienceYears: toNum(parsed.totalExperienceYears),
+      experienceGap: typeof parsed.experienceGap === "string" ? parsed.experienceGap : "none",
+      domainMatch: typeof parsed.domainMatch === "string" ? parsed.domainMatch : "",
       matchedSkills: asArray(parsed.matchedSkills),
       missingSkills: asArray(parsed.missingSkills),
       resumeTweaks: asArray(parsed.resumeTweaks),
@@ -82,11 +91,9 @@ function clampScore(n) {
   return Math.max(1, Math.min(5, v));
 }
 
-function normalizeSeniority(s) {
-  const v = String(s || "").toLowerCase();
-  if (v.includes("over")) return "overqualified";
-  if (v.includes("under")) return "underqualified";
-  return "well-matched";
+function toNum(n) {
+  const v = Number(n);
+  return Number.isFinite(v) ? v : null;
 }
 
 function asArray(a) {
