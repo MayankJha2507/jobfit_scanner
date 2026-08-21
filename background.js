@@ -133,7 +133,7 @@ async function callGemini({ apiKey, model, messages }) {
     response_format: { type: "json_object" }
   });
 
-  const maxAttempts = 2; // initial try + one retry on 429
+  const maxAttempts = 3; // initial try + retries on 429 / transient 5xx
   let attempt = 0;
   let lastRateLimit = null;
 
@@ -166,6 +166,22 @@ async function callGemini({ apiKey, model, messages }) {
         error:
           "Rate limited by Gemini." +
           (retryAfter != null ? " Retry in " + retryAfter + "s." : "")
+      };
+    }
+
+    // Transient server errors (503 overloaded, 500/502/504) — retry with backoff.
+    if (res.status >= 500 && res.status < 600) {
+      if (attempt < maxAttempts) {
+        await sleep(Math.min(Math.pow(2, attempt) * 1000, 30000));
+        continue;
+      }
+      return {
+        ok: false,
+        errorType: "server_error",
+        rateLimit: lastRateLimit,
+        error:
+          "Gemini is temporarily unavailable (" + res.status +
+          "). The model is usually overloaded — wait a moment and try again."
       };
     }
 

@@ -197,6 +197,8 @@ function friendlyError(resp) {
       return resp.error || "Rate limited by Gemini. Wait a moment and retry.";
     case "token_limit":
       return "Token limit exceeded. Your resume or the job post may be too long.";
+    case "server_error":
+      return resp.error || "Gemini is temporarily overloaded. Wait a moment and click Re-analyze.";
     case "parse_error":
       return "The model returned an unreadable response. Try Re-analyze.";
     default:
