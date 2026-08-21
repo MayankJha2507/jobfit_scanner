@@ -4,7 +4,7 @@
 
 const GEMINI_ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-3.7-flash";
 const CHAR_BUDGET = 6000; // per-field cap before sending
 const MAX_TOKENS = 800; // completion is small JSON
 const CACHE_PREFIX = "jobfit_cache_v3_";
