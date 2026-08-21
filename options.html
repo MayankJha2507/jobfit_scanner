@@ -50,18 +50,18 @@
       <p class="sub">Stored locally in your browser via <code>chrome.storage.local</code>.</p>
 
       <div class="field">
-        <label for="apiKey">Groq API key</label>
-        <p class="hint">Get one at console.groq.com. Stored only on this device.</p>
+        <label for="apiKey">Gemini API key</label>
+        <p class="hint">Get one at aistudio.google.com/apikey. Stored only on this device.</p>
         <div class="row">
-          <input type="password" id="apiKey" placeholder="gsk_..." autocomplete="off" />
+          <input type="password" id="apiKey" placeholder="AIza..." autocomplete="off" />
           <button type="button" id="revealKey" class="reveal">Show</button>
         </div>
       </div>
 
       <div class="field">
         <label for="model">Model</label>
-        <p class="hint">Default: openai/gpt-oss-120b (a current Groq production model). See console.groq.com/docs/models for the full list.</p>
-        <input type="text" id="model" placeholder="openai/gpt-oss-120b" />
+        <p class="hint">Default: gemini-2.5-flash. Other options: gemini-2.5-pro, gemini-2.0-flash. See ai.google.dev/gemini-api/docs/models for the full list.</p>
+        <input type="text" id="model" placeholder="gemini-2.5-flash" />
       </div>
 
       <div class="field">

@@ -90,7 +90,7 @@ function renderQuota(rateLimit) {
   const parts = [];
   if (rateLimit.remainingRequests != null) parts.push(rateLimit.remainingRequests + " req left");
   if (rateLimit.remainingTokens != null) parts.push(rateLimit.remainingTokens + " tok left");
-  els.quota.textContent = parts.length ? "Groq: " + parts.join(" · ") : "";
+  els.quota.textContent = parts.length ? "Gemini: " + parts.join(" · ") : "";
 }
 
 function renderChips(ul, items) {
@@ -188,13 +188,13 @@ function renderResult(payload) {
 function friendlyError(resp) {
   switch (resp.errorType) {
     case "no_key":
-      return "No Groq API key set. Click Settings to add one.";
+      return "No Gemini API key set. Click Settings to add one.";
     case "no_resume":
       return "No resume saved. Click Settings to paste or upload yours.";
     case "scrape_failed":
       return "Couldn't read a job description from this page. Open a job posting and try again.";
     case "rate_limited":
-      return resp.error || "Rate limited by Groq. Wait a moment and retry.";
+      return resp.error || "Rate limited by Gemini. Wait a moment and retry.";
     case "token_limit":
       return "Token limit exceeded. Your resume or the job post may be too long.";
     case "parse_error":
@@ -228,7 +228,7 @@ async function runAnalyze(force) {
   busy = true;
   els.analyzeBtn.disabled = true;
   els.reanalyzeBtn.disabled = true;
-  setStatus(force ? "Analyzing with Groq…" : "Analyzing…");
+  setStatus(force ? "Analyzing with Gemini…" : "Analyzing…");
   hide(els.error);
 
   try {

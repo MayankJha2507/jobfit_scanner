@@ -3,7 +3,7 @@ import * as pdfjsLib from "./vendor/pdf.min.mjs";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL("vendor/pdf.worker.min.mjs");
 
-const DEFAULT_MODEL = "openai/gpt-oss-120b";
+const DEFAULT_MODEL = "gemini-2.5-flash";
 
 const els = {
   apiKey: document.getElementById("apiKey"),
@@ -23,13 +23,13 @@ function setConfirm(msg, isError) {
 }
 
 async function load() {
-  const { groqApiKey, groqModel, resume } = await chrome.storage.local.get([
-    "groqApiKey",
-    "groqModel",
+  const { geminiApiKey, geminiModel, resume } = await chrome.storage.local.get([
+    "geminiApiKey",
+    "geminiModel",
     "resume"
   ]);
-  if (groqApiKey) els.apiKey.value = groqApiKey;
-  els.model.value = groqModel || DEFAULT_MODEL;
+  if (geminiApiKey) els.apiKey.value = geminiApiKey;
+  els.model.value = geminiModel || DEFAULT_MODEL;
   if (resume) els.resume.value = resume;
 }
 
@@ -83,14 +83,14 @@ els.revealKey.addEventListener("click", () => {
 });
 
 els.saveBtn.addEventListener("click", async () => {
-  const groqApiKey = els.apiKey.value.trim();
-  const groqModel = els.model.value.trim() || DEFAULT_MODEL;
+  const geminiApiKey = els.apiKey.value.trim();
+  const geminiModel = els.model.value.trim() || DEFAULT_MODEL;
   const resume = els.resume.value.trim();
 
-  if (!groqApiKey) { setConfirm("Add a Groq API key before saving.", true); return; }
+  if (!geminiApiKey) { setConfirm("Add a Gemini API key before saving.", true); return; }
   if (!resume) { setConfirm("Add your resume before saving.", true); return; }
 
-  await chrome.storage.local.set({ groqApiKey, groqModel, resume });
+  await chrome.storage.local.set({ geminiApiKey, geminiModel, resume });
   setConfirm("Saved.");
 });
 

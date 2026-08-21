@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "JobFit",
   "version": "1.0.0",
-  "description": "Analyze whether a job posting matches your resume using the Groq API.",
+  "description": "Analyze whether a job posting matches your resume using the Gemini API.",
   "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": [
     "*://*.linkedin.com/*",

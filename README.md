@@ -1,6 +1,6 @@
 # JobFit
 
-A Chrome extension (Manifest V3) that scores how well a job posting matches your resume, using the **Groq API** (OpenAI-compatible endpoint). Scrapes the job description from LinkedIn, Indeed, or Wellfound, sends it with your stored resume to a Groq LLM, and shows a fit score, matched/missing skills, and resume tweak suggestions.
+A Chrome extension (Manifest V3) that scores how well a job posting matches your resume, using the **Gemini API** (OpenAI-compatible endpoint). Scrapes the job description from LinkedIn, Indeed, or Wellfound, sends it with your stored resume to a Gemini model, and shows a fit score, matched/missing skills, and resume tweak suggestions.
 
 No build step — load it unpacked.
 
@@ -8,13 +8,13 @@ No build step — load it unpacked.
 
 - **One-time resume storage** — paste text or upload `.docx` (parsed with `mammoth`) / `.pdf` (parsed with `pdf.js`). Saved in `chrome.storage.local`.
 - **Per-site scraping** — selector map per job site with a largest-visible-text-block fallback when selectors break.
-- **Groq scoring** — single call from the background service worker (CORS-safe). Model configurable (default `openai/gpt-oss-120b`).
+- **Gemini scoring** — single call from the background service worker (CORS-safe) via Gemini's OpenAI-compatible endpoint. Model configurable (default `gemini-2.5-flash`).
 - **Strict JSON output** — `roleExperienceYears`, `totalExperienceYears`, `experienceGap`, `domainMatch`, `matchedSkills`, `missingSkills`, `resumeTweaks`, `summary`, `verdict`, and `fitScore` (1–5). Parsed safely with code-fence stripping and a fallback.
 - **Calibrated, skeptical scoring** — a strict-recruiter prompt that reasons before scoring: it computes *relevant* years (not total tenure), assesses domain transfer (e.g. B2B SaaS → consumer marketplace), and caps the score under hard rules when experience is below the JD minimum or the domain is a fundamental mismatch. The popup surfaces relevant-vs-total years, the domain match, and any experience gap.
 - **Rate-limit & usage aware**
   - Inputs truncated to ~6k chars each (UI flags truncation).
   - `max_tokens` capped at 800 since the JSON output is small.
-  - Reads Groq's `x-ratelimit-remaining-requests` / `-tokens` headers and shows remaining quota.
+  - Reads any `x-ratelimit-remaining-requests` / `-tokens` headers and shows remaining quota when the provider sends them (Gemini generally doesn't, so this line stays blank).
   - On HTTP 429, parses `retry-after`, shows a clear message, and auto-retries once with exponential backoff.
   - Analyze button is locked while a request is in flight (no concurrent calls).
   - Results cached per job URL — reopening a posting shows the cached result with **no** API call until you click **Re-analyze**.
@@ -24,7 +24,7 @@ No build step — load it unpacked.
 
 ```
 manifest.json        MV3 config: permissions, host perms, service worker, popup, options
-background.js        Service worker — Groq call, truncation, rate-limit handling, caching
+background.js        Service worker — Gemini call, truncation, rate-limit handling, caching
 content.js           Per-site scraper + largest-text-block fallback
 popup.html/.css/.js  Result UI (score, verdict, skills, tweaks, quota, Re-analyze)
 options.html/.js     Settings — API key, model, resume (textarea + file upload)
@@ -42,7 +42,7 @@ icons/               Toolbar icons
 ## Setup
 
 1. Right-click the JobFit icon → **Options** (or click **Settings** in the popup).
-2. Paste your **Groq API key** (get one at [console.groq.com](https://console.groq.com)).
+2. Paste your **Gemini API key** (get one at [aistudio.google.com/apikey](https://aistudio.google.com/apikey)).
 3. Confirm the **model** (default `openai/gpt-oss-120b`).
 4. Paste your **resume** text, or upload a `.docx` / `.pdf` to extract it.
 5. Click **Save**.
@@ -51,7 +51,7 @@ icons/               Toolbar icons
 
 1. Open a job posting on LinkedIn, Indeed, or Wellfound and let the description load.
 2. Click the JobFit icon → **Analyze**.
-3. Review the fit score, verdict, matched vs. missing skills, resume tweaks, and remaining Groq quota.
+3. Review the fit score, verdict, matched vs. missing skills, resume tweaks, and remaining quota (when available).
 4. Reopen the popup on the same job to see the cached result instantly; click **Re-analyze** to force a fresh call.
 
 ## Adding a new job site
@@ -62,7 +62,7 @@ icons/               Toolbar icons
 
 ## Privacy
 
-Your API key, resume, and cached results are stored locally in `chrome.storage.local` on your device. The resume and scraped job text are sent only to Groq's API when you click Analyze.
+Your API key, resume, and cached results are stored locally in `chrome.storage.local` on your device. The resume and scraped job text are sent only to Gemini's API when you click Analyze.
 
 ## Notes
 

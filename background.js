@@ -1,8 +1,10 @@
 // JobFit background service worker (MV3, module).
-// Owns the Groq API call so requests aren't blocked by page CORS.
+// Owns the Gemini API call so requests aren't blocked by page CORS.
+// Uses Gemini's OpenAI-compatible chat-completions endpoint.
 
-const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
-const DEFAULT_MODEL = "openai/gpt-oss-120b";
+const GEMINI_ENDPOINT =
+  "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+const DEFAULT_MODEL = "gemini-2.5-flash";
 const CHAR_BUDGET = 6000; // per-field cap before sending
 const MAX_TOKENS = 800; // completion is small JSON
 const CACHE_PREFIX = "jobfit_cache_v3_";
@@ -122,7 +124,7 @@ function parseRetryAfter(value) {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function callGroq({ apiKey, model, messages }) {
+async function callGemini({ apiKey, model, messages }) {
   const body = JSON.stringify({
     model: model || DEFAULT_MODEL,
     messages,
@@ -137,7 +139,7 @@ async function callGroq({ apiKey, model, messages }) {
 
   while (attempt < maxAttempts) {
     attempt++;
-    const res = await fetch(GROQ_ENDPOINT, {
+    const res = await fetch(GEMINI_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -162,7 +164,7 @@ async function callGroq({ apiKey, model, messages }) {
         retryAfter,
         rateLimit: lastRateLimit,
         error:
-          "Rate limited by Groq." +
+          "Rate limited by Gemini." +
           (retryAfter != null ? " Retry in " + retryAfter + "s." : "")
       };
     }
@@ -184,7 +186,7 @@ async function callGroq({ apiKey, model, messages }) {
         ok: false,
         errorType,
         rateLimit: lastRateLimit,
-        error: "Groq API error (" + res.status + ")" + (detail ? ": " + detail : "")
+        error: "Gemini API error (" + res.status + ")" + (detail ? ": " + detail : "")
       };
     }
 
@@ -212,14 +214,14 @@ async function callGroq({ apiKey, model, messages }) {
 }
 
 async function analyze({ jobDescription, url, title, force }) {
-  const { groqApiKey, groqModel, resume } = await chrome.storage.local.get([
-    "groqApiKey",
-    "groqModel",
+  const { geminiApiKey, geminiModel, resume } = await chrome.storage.local.get([
+    "geminiApiKey",
+    "geminiModel",
     "resume"
   ]);
 
-  if (!groqApiKey) {
-    return { ok: false, errorType: "no_key", error: "No Groq API key set. Open Settings to add one." };
+  if (!geminiApiKey) {
+    return { ok: false, errorType: "no_key", error: "No Gemini API key set. Open Settings to add one." };
   }
   if (!resume || !resume.trim()) {
     return { ok: false, errorType: "no_resume", error: "No resume saved. Open Settings to add yours." };
@@ -241,7 +243,7 @@ async function analyze({ jobDescription, url, title, force }) {
   const j = truncate(jobDescription);
   const messages = buildPrompt(r.text, j.text);
 
-  const out = await callGroq({ apiKey: groqApiKey, model: groqModel, messages });
+  const out = await callGemini({ apiKey: geminiApiKey, model: geminiModel, messages });
   if (!out.ok) return out;
 
   const payload = {
