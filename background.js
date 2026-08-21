@@ -2,7 +2,7 @@
 // Owns the Groq API call so requests aren't blocked by page CORS.
 
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
-const DEFAULT_MODEL = "llama-3.3-70b-versatile";
+const DEFAULT_MODEL = "openai/gpt-oss-120b";
 const CHAR_BUDGET = 6000; // per-field cap before sending
 const MAX_TOKENS = 800; // completion is small JSON
 const CACHE_PREFIX = "jobfit_cache_v3_";

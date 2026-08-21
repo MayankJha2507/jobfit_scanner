@@ -8,7 +8,7 @@ No build step — load it unpacked.
 
 - **One-time resume storage** — paste text or upload `.docx` (parsed with `mammoth`) / `.pdf` (parsed with `pdf.js`). Saved in `chrome.storage.local`.
 - **Per-site scraping** — selector map per job site with a largest-visible-text-block fallback when selectors break.
-- **Groq scoring** — single call from the background service worker (CORS-safe). Model configurable (default `llama-3.3-70b-versatile`).
+- **Groq scoring** — single call from the background service worker (CORS-safe). Model configurable (default `openai/gpt-oss-120b`).
 - **Strict JSON output** — `roleExperienceYears`, `totalExperienceYears`, `experienceGap`, `domainMatch`, `matchedSkills`, `missingSkills`, `resumeTweaks`, `summary`, `verdict`, and `fitScore` (1–5). Parsed safely with code-fence stripping and a fallback.
 - **Calibrated, skeptical scoring** — a strict-recruiter prompt that reasons before scoring: it computes *relevant* years (not total tenure), assesses domain transfer (e.g. B2B SaaS → consumer marketplace), and caps the score under hard rules when experience is below the JD minimum or the domain is a fundamental mismatch. The popup surfaces relevant-vs-total years, the domain match, and any experience gap.
 - **Rate-limit & usage aware**
@@ -43,7 +43,7 @@ icons/               Toolbar icons
 
 1. Right-click the JobFit icon → **Options** (or click **Settings** in the popup).
 2. Paste your **Groq API key** (get one at [console.groq.com](https://console.groq.com)).
-3. Confirm the **model** (default `llama-3.3-70b-versatile`).
+3. Confirm the **model** (default `openai/gpt-oss-120b`).
 4. Paste your **resume** text, or upload a `.docx` / `.pdf` to extract it.
 5. Click **Save**.
 
