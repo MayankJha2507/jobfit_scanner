@@ -5,9 +5,32 @@
 const GEMINI_ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 const DEFAULT_MODEL = "gemini-3.7-flash";
-const CHAR_BUDGET = 6000; // per-field cap before sending
-const MAX_TOKENS = 800; // completion is small JSON
+const CHAR_BUDGET = 4000; // per-field cap before sending (token-thrift)
+const MAX_TOKENS = 500; // completion is small JSON
 const CACHE_PREFIX = "jobfit_cache_v3_";
+
+// Reduce a job URL to a stable identity so the same posting reuses its
+// cached analysis even when tracking/query params change between visits.
+function normalizeJobUrl(rawUrl) {
+  try {
+    const u = new URL(rawUrl);
+    const host = u.hostname.replace(/^www\./, "");
+    if (host.includes("linkedin.com")) {
+      const id =
+        u.searchParams.get("currentJobId") ||
+        (u.pathname.match(/\/jobs\/view\/(\d+)/) || [])[1];
+      if (id) return "linkedin:" + id;
+    }
+    if (host.includes("indeed.com")) {
+      const jk = u.searchParams.get("jk") || u.searchParams.get("vjk");
+      if (jk) return "indeed:" + jk;
+    }
+    // Default: origin + path, dropping query and hash noise.
+    return host + u.pathname.replace(/\/+$/, "");
+  } catch (_) {
+    return rawUrl || "unknown";
+  }
+}
 
 function truncate(text, budget = CHAR_BUDGET) {
   const clean = (text || "").trim();
@@ -15,33 +38,18 @@ function truncate(text, budget = CHAR_BUDGET) {
   return { text: clean.slice(0, budget), truncated: true };
 }
 
-const SYSTEM_PROMPT = `You are a strict, calibrated technical recruiter. Analyze the fit between the RESUME and JOB DESCRIPTION provided. Be skeptical and avoid grade inflation. Match on substance, not on keywords or numbers appearing in the text.
+const SYSTEM_PROMPT = `You are a strict, calibrated technical recruiter. Assess fit between the RESUME and JOB DESCRIPTION. Be skeptical; avoid grade inflation. Match on substance, not keywords or numbers in the text.
 
-Reason step by step BEFORE scoring:
-1. Extract the JD's hard requirements: years of role-specific experience, domain/business model (e.g. B2B vs B2C, SaaS vs marketplace, online vs offline fulfillment), seniority level, and must-have skills.
-2. From the resume's employment DATES and titles, compute two numbers: (a) years of experience in the specific discipline/seniority the JD requires, and (b) total career years. To get (a), count only roles whose title or responsibilities clearly fall within the JD's target discipline; exclude earlier roles in a different function, even at the same employer. If every role matches the discipline, (a) and (b) will be equal — that is expected and must NOT be penalized. Never assume total tenure equals relevant experience, and never take a summary's headline number (e.g. "8 years") at face value — always verify it against the dated roles.
-3. Assess domain transfer explicitly. Cross-domain moves (e.g. B2B SaaS -> consumer marketplace, online -> offline fulfillment) are significant gaps, not keyword matches.
-4. List the skills and experiences the candidate LACKS for THIS specific role and domain.
+Before scoring:
+1. Extract the JD's hard requirements: minimum years of role-specific experience, domain/business model (B2B vs B2C, SaaS vs marketplace, online vs offline), seniority, must-have skills.
+2. From the resume's dated titles compute (a) years in the JD's specific discipline — count only roles clearly in that function, excluding unrelated earlier roles even at the same employer — and (b) total career years. If all roles match the discipline, a=b (do NOT penalize). Never treat total tenure as relevant experience; verify any headline number (e.g. "8 years") against the dated roles.
+3. Assess domain transfer: cross-domain moves (e.g. B2B SaaS -> consumer marketplace) are real gaps, not keyword matches.
+4. List what the candidate LACKS for THIS role and domain.
 
-Hard rules:
-- If role-specific experience is below the JD's stated minimum, fitScore is at most 3.
-- If the business model/domain is a fundamental mismatch, fitScore is at most 3.
-- If both are true, fitScore is at most 2.
-- missingSkills may only be empty for a same-domain, same-seniority match. For any cross-domain application you MUST list concrete gaps.
+Caps: role-specific experience below the JD minimum -> fitScore <= 3. Fundamental domain mismatch -> fitScore <= 3. Both -> <= 2. missingSkills may be empty ONLY for a same-domain, same-seniority match; for any cross-domain case you MUST list concrete gaps.
 
-Return STRICT JSON only — no preamble, no markdown, no code fences. Emit the analytical fields first and fitScore LAST, so the score follows from the analysis:
-{
-  "roleExperienceYears": number,
-  "totalExperienceYears": number,
-  "experienceGap": "one-line description of any gap, or 'none'",
-  "domainMatch": "e.g. 'B2B SaaS -> consumer marketplace: weak'",
-  "matchedSkills": [],
-  "missingSkills": [],
-  "resumeTweaks": [],
-  "summary": "2-3 sentences",
-  "verdict": "strong fit | partial fit | weak fit",
-  "fitScore": 1-5 integer (1 = weak/irrelevant, 3 = partial, 5 = strong same-domain same-level match)
-}`;
+Return STRICT JSON only — no prose, markdown, or code fences. Emit fitScore LAST:
+{"roleExperienceYears":number,"totalExperienceYears":number,"experienceGap":"one line or 'none'","domainMatch":"e.g. 'B2B SaaS -> marketplace: weak'","matchedSkills":[],"missingSkills":[],"resumeTweaks":[],"summary":"2-3 sentences","verdict":"strong fit | partial fit | weak fit","fitScore":1-5 integer (1=weak, 3=partial, 5=strong same-domain same-level)}`;
 
 function buildPrompt(resume, jobDescription) {
   return [
@@ -246,7 +254,7 @@ async function analyze({ jobDescription, url, title, force }) {
     return { ok: false, errorType: "scrape_failed", error: "Couldn't read a job description from this page." };
   }
 
-  const cacheKey = CACHE_PREFIX + (url || "unknown");
+  const cacheKey = CACHE_PREFIX + normalizeJobUrl(url);
 
   if (!force) {
     const cached = await chrome.storage.local.get(cacheKey);
@@ -278,7 +286,7 @@ async function analyze({ jobDescription, url, title, force }) {
 }
 
 async function getCache(url) {
-  const cacheKey = CACHE_PREFIX + (url || "unknown");
+  const cacheKey = CACHE_PREFIX + normalizeJobUrl(url);
   const cached = await chrome.storage.local.get(cacheKey);
   if (cached[cacheKey]) return { ...cached[cacheKey], ok: true, cached: true };
   return { ok: false, cached: false };
