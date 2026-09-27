@@ -4,7 +4,8 @@
 
 const GEMINI_ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
-const DEFAULT_MODEL = "gemini-3.7-flash";
+const DEFAULT_MODEL = "gemini-3.5-flash-lite"; // lightest, highest availability
+const FALLBACK_MODEL = "gemini-3.1-flash-lite"; // tried if primary is 503-overloaded
 const CHAR_BUDGET = 4000; // per-field cap before sending (token-thrift)
 const MAX_TOKENS = 500; // completion is small JSON
 const CACHE_PREFIX = "jobfit_cache_v3_";
@@ -267,13 +268,26 @@ async function analyze({ jobDescription, url, title, force }) {
   const j = truncate(jobDescription);
   const messages = buildPrompt(r.text, j.text);
 
-  const out = await callGemini({ apiKey: geminiApiKey, model: geminiModel, messages });
+  const primaryModel = geminiModel || DEFAULT_MODEL;
+  let out = await callGemini({ apiKey: geminiApiKey, model: primaryModel, messages });
+
+  // If the chosen model is overloaded (503) even after retries, fall back to a
+  // lighter model automatically so a scan can still complete.
+  let usedFallbackModel = null;
+  if (!out.ok && out.errorType === "server_error" && primaryModel !== FALLBACK_MODEL) {
+    const fb = await callGemini({ apiKey: geminiApiKey, model: FALLBACK_MODEL, messages });
+    if (fb.ok) {
+      out = fb;
+      usedFallbackModel = FALLBACK_MODEL;
+    }
+  }
   if (!out.ok) return out;
 
   const payload = {
     result: out.result,
     rateLimit: out.rateLimit,
     usage: out.usage,
+    usedFallbackModel,
     truncated: { resume: r.truncated, jobDescription: j.truncated },
     url,
     title,

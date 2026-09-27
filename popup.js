@@ -174,6 +174,7 @@ function renderResult(payload) {
   if (payload.truncated?.resume) notes.push("Resume was truncated to fit limits.");
   if (payload.truncated?.jobDescription) notes.push("Job description was truncated to fit limits.");
   if (scraped?.usedFallback) notes.push("Used fallback text extraction — verify the scraped section.");
+  if (payload.usedFallbackModel) notes.push("Primary model was overloaded; analyzed with " + payload.usedFallbackModel + ".");
   els.notes.textContent = notes.join(" ");
 
   renderQuota(payload.rateLimit);

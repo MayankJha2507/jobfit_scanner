@@ -8,7 +8,7 @@ No build step — load it unpacked.
 
 - **One-time resume storage** — paste text or upload `.docx` (parsed with `mammoth`) / `.pdf` (parsed with `pdf.js`). Saved in `chrome.storage.local`.
 - **Per-site scraping** — selector map per job site with a largest-visible-text-block fallback when selectors break.
-- **Gemini scoring** — single call from the background service worker (CORS-safe) via Gemini's OpenAI-compatible endpoint. Model configurable (default `gemini-3.7-flash`).
+- **Gemini scoring** — single call from the background service worker (CORS-safe) via Gemini's OpenAI-compatible endpoint. Model configurable (default `gemini-3.5-flash-lite`; auto-falls back to `gemini-3.1-flash-lite` if the primary model is 503-overloaded).
 - **Strict JSON output** — `roleExperienceYears`, `totalExperienceYears`, `experienceGap`, `domainMatch`, `matchedSkills`, `missingSkills`, `resumeTweaks`, `summary`, `verdict`, and `fitScore` (1–5). Parsed safely with code-fence stripping and a fallback.
 - **Calibrated, skeptical scoring** — a strict-recruiter prompt that reasons before scoring: it computes *relevant* years (not total tenure), assesses domain transfer (e.g. B2B SaaS → consumer marketplace), and caps the score under hard rules when experience is below the JD minimum or the domain is a fundamental mismatch. The popup surfaces relevant-vs-total years, the domain match, and any experience gap.
 - **Rate-limit & usage aware**
