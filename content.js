@@ -108,6 +108,38 @@
 
   const MIN_JD_CHARS = 120;
 
+  // Anchor on a stable section heading (e.g. "About the job") and pull the
+  // description that follows it. Survives LinkedIn class-name churn.
+  const HEADING_LABELS = ["about the job", "job description", "about the role", "the role"];
+
+  function extractByHeading() {
+    const heads = document.querySelectorAll("h1, h2, h3, h4, [role='heading']");
+    for (const h of heads) {
+      if (!isVisible(h)) continue;
+      const label = (h.innerText || "").trim().toLowerCase();
+      if (!HEADING_LABELS.includes(label)) continue;
+
+      // Collect the text of the elements that follow the heading.
+      const parts = [];
+      let node = h.nextElementSibling;
+      while (node) {
+        if (isVisible(node)) {
+          const t = (node.innerText || "").trim();
+          if (t) parts.push(t);
+        }
+        node = node.nextElementSibling;
+      }
+      let body = cleanText(parts.join("\n"));
+
+      // Fallback: the heading's container minus the heading text itself.
+      if (body.length < MIN_JD_CHARS && h.parentElement && isVisible(h.parentElement)) {
+        body = cleanText((h.parentElement.innerText || "").replace(h.innerText, ""));
+      }
+      if (body.length >= MIN_JD_CHARS) return body;
+    }
+    return "";
+  }
+
   function scrape() {
     const key = siteKey();
     let text = "";
@@ -130,6 +162,16 @@
           }
         }
       }
+
+      // Selectors missed — anchor on the "About the job" heading instead.
+      if (!text) {
+        const anchored = extractByHeading();
+        if (anchored.length >= MIN_JD_CHARS) {
+          text = anchored;
+          matchedSelector = "heading:about-the-job";
+        }
+      }
+
       if (!text) {
         reason =
           "Couldn't find the job description on this page. Open the full job " +
