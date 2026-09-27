@@ -8,7 +8,7 @@ const DEFAULT_MODEL = "gemini-3.5-flash-lite"; // lightest, highest availability
 const FALLBACK_MODEL = "gemini-3.1-flash-lite"; // tried if primary is 503-overloaded
 const CHAR_BUDGET = 4000; // per-field cap before sending (token-thrift)
 const MAX_TOKENS = 500; // completion is small JSON
-const CACHE_PREFIX = "jobfit_cache_v3_";
+const CACHE_PREFIX = "jobfit_cache_v4_";
 
 // Reduce a job URL to a stable identity so the same posting reuses its
 // cached analysis even when tracking/query params change between visits.
@@ -31,6 +31,22 @@ function normalizeJobUrl(rawUrl) {
   } catch (_) {
     return rawUrl || "unknown";
   }
+}
+
+// Small stable hash (djb2) of the job text, so the cache key is tied to the
+// actual description — different postings can never collide, and re-opening
+// the same posting still hits the cache.
+function hashText(s) {
+  let h = 5381;
+  const str = (s || "").slice(0, 4000);
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) + h + str.charCodeAt(i)) >>> 0;
+  }
+  return h.toString(36);
+}
+
+function cacheKeyFor(url, jobDescription) {
+  return CACHE_PREFIX + normalizeJobUrl(url) + ":" + hashText(jobDescription);
 }
 
 function truncate(text, budget = CHAR_BUDGET) {
@@ -255,7 +271,7 @@ async function analyze({ jobDescription, url, title, force }) {
     return { ok: false, errorType: "scrape_failed", error: "Couldn't read a job description from this page." };
   }
 
-  const cacheKey = CACHE_PREFIX + normalizeJobUrl(url);
+  const cacheKey = cacheKeyFor(url, jobDescription);
 
   if (!force) {
     const cached = await chrome.storage.local.get(cacheKey);
@@ -299,8 +315,8 @@ async function analyze({ jobDescription, url, title, force }) {
   return { ...payload, ok: true };
 }
 
-async function getCache(url) {
-  const cacheKey = CACHE_PREFIX + normalizeJobUrl(url);
+async function getCache(url, jobDescription) {
+  const cacheKey = cacheKeyFor(url, jobDescription);
   const cached = await chrome.storage.local.get(cacheKey);
   if (cached[cacheKey]) return { ...cached[cacheKey], ok: true, cached: true };
   return { ok: false, cached: false };
@@ -314,7 +330,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true; // async response
   }
   if (msg && msg.type === "JOBFIT_GET_CACHE") {
-    getCache(msg.url)
+    getCache(msg.url, msg.jobDescription)
       .then(sendResponse)
       .catch(() => sendResponse({ ok: false, cached: false }));
     return true;

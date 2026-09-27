@@ -9,11 +9,13 @@
   // Each value is an ordered list of CSS selectors tried in turn.
   const SITE_SELECTORS = {
     "linkedin.com": [
-      ".jobs-description__content",
-      ".jobs-description-content__text",
       "#job-details",
+      ".jobs-description__content .jobs-box__html-content",
+      ".jobs-description-content__text",
+      ".jobs-description__content",
       ".jobs-box__html-content",
       "article.jobs-description__container",
+      ".jobs-description",
       ".description__text"
     ],
     "indeed.com": [
@@ -104,32 +106,43 @@
     return luminance < 128 ? "dark" : "light";
   }
 
+  const MIN_JD_CHARS = 120;
+
   function scrape() {
     const key = siteKey();
     let text = "";
     let usedFallback = false;
     let matchedSelector = null;
+    let reason = "";
 
     if (key) {
+      // On a supported site, trust ONLY the job-specific selectors. The generic
+      // largest-text-block fallback grabs the job LIST on split-view pages,
+      // which is identical for every posting — so we never use it here.
       for (const sel of SITE_SELECTORS[key]) {
         const el = document.querySelector(sel);
         if (el && isVisible(el)) {
           const t = cleanText(el.innerText);
-          if (t.length > 80) {
+          if (t.length > MIN_JD_CHARS) {
             text = t;
             matchedSelector = sel;
             break;
           }
         }
       }
-    }
-
-    if (!text || text.length < 80) {
+      if (!text) {
+        reason =
+          "Couldn't find the job description on this page. Open the full job " +
+          "posting (click the job so its details expand on the right) and try again.";
+      }
+    } else {
+      // Unknown host: best-effort generic extraction.
       const fb = largestVisibleTextBlock();
-      if (fb.length > text.length) {
+      if (fb.length > MIN_JD_CHARS) {
         text = fb;
         usedFallback = true;
-        matchedSelector = null;
+      } else {
+        reason = "Couldn't read a job description from this page.";
       }
     }
 
@@ -140,8 +153,9 @@
       site: key || location.hostname,
       usedFallback,
       matchedSelector,
+      reason,
       pageTheme: detectPageTheme(),
-      ok: text.length >= 80
+      ok: text.length >= MIN_JD_CHARS
     };
   }
 

@@ -222,7 +222,9 @@ async function scrapeActivePage() {
 
   await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
   const resp = await chrome.tabs.sendMessage(tab.id, { type: "JOBFIT_SCRAPE" });
-  if (!resp || !resp.ok) throw new Error("Couldn't read a job description from this page.");
+  if (!resp || !resp.ok) {
+    throw new Error((resp && resp.reason) || "Couldn't read a job description from this page.");
+  }
   return resp;
 }
 
@@ -279,7 +281,11 @@ async function init() {
   els.analyzeBtn.disabled = false;
 
   // Show cached result if we already analyzed this URL — no API call.
-  const cached = await chrome.runtime.sendMessage({ type: "JOBFIT_GET_CACHE", url: scraped.url });
+  const cached = await chrome.runtime.sendMessage({
+    type: "JOBFIT_GET_CACHE",
+    url: scraped.url,
+    jobDescription: scraped.text
+  });
   if (cached && cached.ok) {
     renderResult(cached);
   } else {
