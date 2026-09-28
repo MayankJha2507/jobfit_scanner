@@ -119,23 +119,19 @@
       const label = (h.innerText || "").trim().toLowerCase();
       if (!HEADING_LABELS.includes(label)) continue;
 
-      // Collect the text of the elements that follow the heading.
-      const parts = [];
-      let node = h.nextElementSibling;
-      while (node) {
-        if (isVisible(node)) {
-          const t = (node.innerText || "").trim();
-          if (t) parts.push(t);
-        }
-        node = node.nextElementSibling;
+      // Climb from the heading toward the container that also holds the
+      // description body, then slice from the heading label onward so any
+      // title/buttons/other sections above it are dropped. Cap the climb so we
+      // never balloon up into the job list.
+      let container = h;
+      for (let i = 0; i < 8 && container.parentElement; i++) {
+        container = container.parentElement;
+        const full = cleanText(container.innerText || "");
+        if (full.length < label.length + MIN_JD_CHARS) continue;
+        const idx = full.toLowerCase().lastIndexOf(label);
+        const body = cleanText(idx >= 0 ? full.slice(idx + label.length) : full);
+        if (body.length >= MIN_JD_CHARS) return body;
       }
-      let body = cleanText(parts.join("\n"));
-
-      // Fallback: the heading's container minus the heading text itself.
-      if (body.length < MIN_JD_CHARS && h.parentElement && isVisible(h.parentElement)) {
-        body = cleanText((h.parentElement.innerText || "").replace(h.innerText, ""));
-      }
-      if (body.length >= MIN_JD_CHARS) return body;
     }
     return "";
   }
